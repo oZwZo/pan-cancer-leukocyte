@@ -12,3 +12,8 @@
 # the result folder
 
 /HER2/result/*
+
+# data and log
+
+*.npy
+*.log
