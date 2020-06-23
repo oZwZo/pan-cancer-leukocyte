@@ -12,4 +12,4 @@ sys.path.append(top_path)
 
 for path in [data_path,top_path,tsne_path]:
     if not os.path.exists(path):
-        os.path.mkdir(path)
+        os.path.mkdir(path) # correct code ?
