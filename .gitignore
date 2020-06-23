@@ -2,6 +2,12 @@
 
 *-checkpoint.py
 *-checkpoint.ipynb
+*-checkpoint*
+
+# python cache
+
+*.pyc
+
 
 # the result folder
 
