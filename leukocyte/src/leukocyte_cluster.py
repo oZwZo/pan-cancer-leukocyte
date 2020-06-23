@@ -1,16 +1,20 @@
-import numpy as np
-import pandas as pd
+import os,sys
 import utils
-from PATH import data_path
-
+import my_metrics
 from sklearn.cluster import AffinityPropagation,AgglomerativeClustering,KMeans,MeanShift
+from sklearn.mixture import GaussianMixture as GMM
 from sklearn.preprocessing import normalize,scale
+from sklearn.manifold import TSNE
 from scipy.cluster.hierarchy import linkage,dendrogram,distance 
 
 from matplotlib import pyplot as plt
 from matplotlib.ticker import StrMethodFormatter
 from matplotlib import cm
 from IPython.core.pylabtools import figsize
+
+global cancer_types
+# all the cancer type 
+cancer_types = [file.split('.csv')[0] for file in os.listdir(os.path.join(data_path,'leukocyte_ratio')) if '.csv' in file]
 
 def heatmap_with_text(data,statistics):
     '''
@@ -76,6 +80,36 @@ def statistics_preprocess(DF):
 
     return filtered_DF
 
+def t_sne_tuning(data,file_name):
+    """
+    A new DF should be used, perform T_SNE decomposition and save to npy file 
+    ...file_name : cancer_type + '.npy'
+    """
+    assert(file_name.split('.npy')[0] in cancer_types)   # make sure the naming is correct
+                                
+    tsne_datas = [TSNE(perplexity=perplexity,n_jobs=8,n_iter=8000).fit_transform(data) 
+                  for perplexity in [5,10,15,20,25,30,35,40,45]]   # TSNE
+    tsne_datas = np.stack(tsne_datas)                          # list to array
+                                
+    np.save(os.path.join(tsne_path,filename),tsne_datas)
+    print('/n T_SNE data save to ',os.path.join(tsne_path,filename))
+                                
+def cluster3(data,n_clusters = range(5,20)):
+    '''
+    cluster data with 3 different method : agglomerative , K-means, GMM
+    and generate its cluster metrics 
+    '''
+    labels = {}
+    metrics = {}
+    methods = ['ac','km','gmm']
 
-DF = utils.read_leukocyte(data_path,separate=True)
+    # clustering
+    labels['ac'] = [AgglomerativeClustering(n_clusters=i).fit_predict(n_data) for i in n_clusters]
+    labels['km'] = [KMeans(n_clusters=i,n_jobs=8).fit_predict(n_data) for i in n_clusters]
+    labels['gmm'] = [GMM(n_components=i,max_iter=400).fit_predict(n_data) for i in  n_clusters]
 
+    # metrics class
+    for method in methods:
+        metircs[method] = my_metrics.cluster_metrics(data,labels[method])
+
+    return labels,metrics
