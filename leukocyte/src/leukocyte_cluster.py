@@ -1,12 +1,14 @@
-import os,sys
-import utils
-import my_metrics
+import os,sys,utils, my_metrics
+import pandas as pd
+import numpy as np
+
+from tqdm import tqdm
 from sklearn.cluster import AffinityPropagation,AgglomerativeClustering,KMeans,MeanShift
 from sklearn.mixture import GaussianMixture as GMM
 from sklearn.preprocessing import normalize,scale
 from sklearn.manifold import TSNE
 from scipy.cluster.hierarchy import linkage,dendrogram,distance 
-
+from PATH import *
 from matplotlib import pyplot as plt
 from matplotlib.ticker import StrMethodFormatter
 from matplotlib import cm
@@ -20,7 +22,7 @@ def heatmap_with_text(data,statistics):
     '''
     plotting func
     '''
-    valfmt = StrMethodFormatter('{x:.3f}'
+    valfmt = StrMethodFormatter('{x:.3f}')
     fig,ax = plt.subplots(figsize=(17,10))
 
     im = ax.imshow(data,cmap=cm.Blues);
@@ -67,14 +69,9 @@ def statistics_preprocess(DF):
     statistics = DF.describe(percentiles=[0.25,0.5,0.75,0.95,0.99])
     
     # statistics and quantile heatmap
-    data = statistics[1:,:].values
+    data = statistics.iloc[1:,:].values
     heatmap_with_text(data,statistics)
-
-    # violin plot
-    v_data = np.array(DF.values[:,1:],dtype=np.float32)
-    v_data = v_data - np.mean(v_data,axis=0)
-    violin(v_data,statistics)
-                                
+                            
     # screen out data with 4 or more outlines feature
     filtered_DF = data_filtering(DF,statistics)
 
@@ -86,14 +83,41 @@ def t_sne_tuning(data,file_name):
     ...file_name : cancer_type + '.npy'
     """
     assert(file_name.split('.npy')[0] in cancer_types)   # make sure the naming is correct
-                                
-    tsne_datas = [TSNE(perplexity=perplexity,n_jobs=8,n_iter=8000).fit_transform(data) 
-                  for perplexity in [5,10,15,20,25,30,35,40,45]]   # TSNE
-    tsne_datas = np.stack(tsne_datas)                          # list to array
-                                
-    np.save(os.path.join(tsne_path,filename),tsne_datas)
-    print('/n T_SNE data save to ',os.path.join(tsne_path,filename))
-                                
+    npy = os.path.join(tsne_path,file_name)
+    if not os.path.exists(npy):  
+        # will skip this part if already computed
+        tsne_datas = [TSNE(perplexity=perplexity,n_jobs=8,n_iter=8000).fit_transform(data) 
+                      for perplexity in tqdm([5,10,15,20,25,30,35,40,45])]   # TSNE
+        tsne_datas = np.stack(tsne_datas)                          # list to array
+
+        np.save(npy,tsne_datas)
+        print('/n T_SNE data save to ',npy)
+    else:
+        print('/n T_SNE data exists \n')
+        tsne_datas = np.load(npy)
+        
+    fig = plt.figure(figsize=(16,12))
+    ax = fig.subplots(3,3)
+    i = 0
+    for k in range(3):
+        for j in range(3):
+            ax[k,j].scatter(tsne_datas[i][:,0],tsne_datas[i][:,1],s=1)
+            i += 1
+
+def hierarchical_tree(data,metric='euclidean',p_start=5,p_step=1):
+    disMat=distance.pdist(data,metric=metric)
+    Z=linkage(disMat,method='average') 
+    p = p_start
+    fig = plt.figure(figsize=(16,12))
+    axs = fig.subplots(3,3)
+    for i in range(3):
+        for j in range(3):
+            ax = axs[i,j]
+            tree = dendrogram(Z,p=p,truncate_mode='level',no_labels=True,distance_sort=True,ax=ax)
+            ax.set_title('P = {}  N Clusters = {}'.format(p, len(tree['leaves'])))
+            p += p_step
+    
+    
 def cluster3(data,n_clusters = range(5,20)):
     '''
     cluster data with 3 different method : agglomerative , K-means, GMM
@@ -104,12 +128,25 @@ def cluster3(data,n_clusters = range(5,20)):
     methods = ['ac','km','gmm']
 
     # clustering
-    labels['ac'] = [AgglomerativeClustering(n_clusters=i).fit_predict(n_data) for i in n_clusters]
-    labels['km'] = [KMeans(n_clusters=i,n_jobs=8).fit_predict(n_data) for i in n_clusters]
-    labels['gmm'] = [GMM(n_components=i,max_iter=400).fit_predict(n_data) for i in  n_clusters]
+    labels['ac'] = [AgglomerativeClustering(n_clusters=i).fit_predict(data) for i in n_clusters]
+    labels['km'] = [KMeans(n_clusters=i,n_jobs=8).fit_predict(data) for i in n_clusters]
+    labels['gmm'] = [GMM(n_components=i,max_iter=400).fit_predict(data) for i in  n_clusters]
 
     # metrics class
     for method in methods:
-        metircs[method] = my_metrics.cluster_metrics(data,labels[method])
-
+        metrics[method] = my_metrics.cluster_metrics(data,labels[method])
+    
     return labels,metrics
+
+def metrics_curve(metrics):
+    methods = metrics.keys()
+    
+    figall = plt.figure(figsize=(16,16))
+    ax = figall.subplots(4,2)
+
+    for method in methods:          
+        metrics[method].all_in_one(fig=figall,ax=ax,**{'label':method})
+    for ls in ax:
+        for axx in ls:
+            axx.legend()
+    plt.show()
