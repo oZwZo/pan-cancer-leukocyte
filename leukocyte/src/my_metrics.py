@@ -225,63 +225,68 @@ class cluster_metrics(object):
     
     def __init__(self,X,label_ls):
         warnings.filterwarnings("ignore")
-        self.k_ls = [len(np.unique(labels)) for labels in label_ls]
+        self._k_ls = [len(np.unique(labels)) for labels in label_ls][:-1]
 
         # single mapping metrics
         # CH , Silhoutte , Davies-Doulbin
-        self.CSD = np.array([
+        self._CSD = np.array([
                 (calinski_harabasz_score(X,labels),silhouette_score(X,labels),davies_bouldin_score(X,labels)) 
             for labels in label_ls
         ])
-        self.CH_score = self.CSD[:,0]
-        self.SH_score = self.CSD[:,1]
-        self.DB_score = self.CSD[:,2]
+        self.CH_score = self._CSD[:-1,0]
+        self.SH_score = self._CSD[:-1,1]
+        self.DB_score = self._CSD[:-1,2]
 
         # gap_k , sd_k
         # will return ks - 1 gap statistics only
-        self.Gap_sdk = np.array([gap_statistics(X,labels) for labels in label_ls])
-        self.Gapstat = self.Gap_sdk[:-1,0]
-        self.Gap_scale = np.sum(self.Gap_sdk,axis = 1)[1:]    # gap(k) + s_k
-        self.Gap_diff = self.Gapstat - self.Gap_scale
+        self._Gap_sdk = np.array([gap_statistics(X,labels) for labels in label_ls])
+        self._Gapstat = self._Gap_sdk[:-1,0]
+        self._Gap_scale = np.sum(self._Gap_sdk,axis = 1)[1:]    # gap(k) + s_k
+        self.Gap_diff = self._Gapstat - self._Gap_scale
         
         # KL_score
-        self.KL_score = KL_score(X, label_ls)
+#         self.KL_score = KL_score(X, label_ls)
         
         # Hartigan score
         self.Hartigan = Hartigan_score(X, label_ls)
         
         # Jump method
-        self.dk_ls = np.array([jump_of_k(X,labels) for labels in label_ls])
-        self.Jump_score =  self.dk_ls[1:] - self.dk_ls[:-1]
+        self._dk_ls = np.array([jump_of_k(X,labels) for labels in label_ls])
+        self.Jump_score =  self._dk_ls[1:] - self._dk_ls[:-1]
+    
+    def vote(self):
+        to_pass = lambda x : x[0] != '_'                              # metrics are not starting with '_'
+        attrs = list(filter(to_pass,dir(self)))                       # those metrics attr
+        self._metrics = [self.__getattribute__(attr) for attr in  attrs]    # list of metrics 
+        
+        max_indexs = np.array([np.argmax(metric) for metric in self._metrics])  # max for each metric of a cluster method
+        
+        return np.argmax(np.bincount(max_indexs))                     #  the most 
         
     def all_in_one(self,fig=None,ax=None,**kwarg):
         if fig is None:
             fig = plt.figure(figsize=(12,8))
         if fig is None:
-            ax = fig.subplots(4,2)
+            ax = fig.subplots(3,2)
         
-        
-        ax[0,0].plot(self.k_ls,self.SH_score,**kwarg);
+        ax[0,0].plot(self._k_ls,self.SH_score,**kwarg);
         ax[0,0].set_title('Silhouttee score')
         
-        ax[0,1].plot(self.k_ls,self.DB_score,**kwarg);
+        ax[0,1].plot(self._k_ls,self.DB_score,**kwarg);
         ax[0,1].set_title('DB score')
         
-        ax[1,0].plot(self.k_ls,self.CH_score,**kwarg);
+        ax[1,0].plot(self._k_ls,self.CH_score,**kwarg);
         ax[1,0].set_title('CH score')
         
-        
         # will return ks - 1 gap statistics only
-        ax[1,1].plot(self.k_ls[:-1],self.Gap_diff,**kwarg);
+        ax[1,1].plot(self._k_ls,self.Gap_diff,**kwarg);
         ax[1,1].set_title('Gap statistics')
         
-        ax[2,0].plot(self.k_ls[1:-1],self.KL_score,**kwarg)
-        ax[2,0].set_title('KL score')
-            
-        ax[2,1].plot(self.k_ls[:-1],self.Hartigan,**kwarg)
-        ax[2,1].set_title('Hartigan score')
+        ax[2,0].plot(self._k_ls,self.Hartigan,**kwarg)
+        ax[2,0].set_title('Hartigan score')
         
-        ax[3,0].plot(self.k_ls[:-1],self.Jump_score,**kwarg)
-        ax[3,0].set_title('Jump score')
+        ax[2,1].plot(self._k_ls,self.Jump_score,**kwarg)
+        ax[2,1].set_title('Jump score')
         
-        
+#         ax[3,0].plot(self._k_ls[1:-1],self.KL_score,**kwarg)
+#         ax[3,0].set_title('KL score')

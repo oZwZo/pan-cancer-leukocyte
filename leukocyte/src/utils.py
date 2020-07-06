@@ -1,8 +1,10 @@
 import numpy as np
 import pandas as pd
-import os
+import os,sys
+sys.path.append(os.path.dirname(__file__))
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import scale
+from PATH import *
 
 ###########################
 #######    read    ########
@@ -16,7 +18,9 @@ def read_leukocyte(data_path,separate=False,csv=None):
     if separate:
         if csv is None:
             pds= {}
-            for csv in os.listdir(data_path+'/leukocyte_ratio'):
+            csvs = os.listdir(leukocyte_path)
+            csvs = list(filter(lambda x : '.csv' in x,csvs))
+            for csv in csvs:
                 if csv == 'ALL.csv':
                     continue              # skip ALL.csv
                 fn = csv.split('.')[0]

@@ -1,0 +1,23 @@
+cell,HEX
+B cells naive,#d11e72
+B cells memory,#e3598a
+Plasma cells,#d84559
+T cells CD8,#c2a748
+T cells CD4 naive,#96a500
+T cells CD4 memory resting,#b3cd37
+T cells CD4 memory activated,#7aac31
+T cells follicular helper,#437427
+T cells regulatory (Tregs),#6cbb5c
+T cells gamma delta,#03c679
+NK cells resting,#6589dd
+NK cells activated,#6b6bdb
+Monocytes,#00cbb1
+Macrophages M0,#e85935
+Macrophages M1,#ab6829
+Macrophages M2,#da941f
+Dendritic cells resting,#c84ccb
+Dendritic cells activated,#5f308c
+Mast cells resting,#db7fcf
+Mast cells activated,#9c2776
+Eosinophils,#db675c
+Neutrophils,#9a111b
