@@ -32,3 +32,7 @@ def read_leukocyte(data_path,separate=False,csv=None):
         pds = pd.read_csv(os.path.join(data_path,'leukocyte_ratio','ALL.csv'))
     
     return pds
+
+
+def read_color():
+    return pd.read_csv(os.path.join(top_path,'leukocyte','color_leukocyte.csv'),index_col=0)

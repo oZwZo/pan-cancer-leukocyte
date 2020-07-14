@@ -180,7 +180,7 @@ def sort_data_by_label(n_data,labels,metrics,method='km',direct_label=None):
     if direct_label is not None:
         label = direct_label
     else:
-    label = labels[method][metrics[method].vote()]
+        label = labels[method][metrics[method].vote()]
     label_df=pd.DataFrame({'x':range(n_data.shape[0]),'label': label}).sort_values('label')
     index=label_df['x']
     n_data = n_data[index]

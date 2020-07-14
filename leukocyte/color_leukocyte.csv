@@ -1,22 +1,23 @@
-﻿neutrophils,#9a111b
+,HEX
+Neutrophils,#9a111b
 Eosinophils,#db675c
-Mast cell activated,#9c2776
-Mast cell resting,#db7fcf
-Dentric cell activated,#5f308c
-Dentric cell resting,#c84ccb
+Mast cells activated,#9c2776
+Mast cells resting,#db7fcf
+Dendritic cells activated,#5f308c
+Dendritic cells resting,#c84ccb
 Macrophages M2,#da941f
 Macrophages M1,#ab6829
 Macrophages M0,#e85935
-Monocyte,#00cbb1
+Monocytes,#00cbb1
 NK cells activated,#6b6bdb
 NK cells resting,#6589dd
 T cells gamma delta,#03c679
-T cells regulatory,#6cbb5c
+T cells regulatory (Tregs),#6cbb5c
 T cells follicular helper,#437427
 T cells CD4 memory activated,#7aac31
 T cells CD4 memory resting,#b3cd37
-T cells CD4 memory naïve,#96a500
+T cells CD4 naive,#96a500
 T cells CD8,#c2a748
 Plasma cells,#d84559
 B cells memory,#e3598a
-B cells naïve,#d11e72
+B cells naive,#d11e72
