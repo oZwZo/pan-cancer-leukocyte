@@ -11,7 +11,7 @@ from sklearn.preprocessing import normalize,scale
 from sklearn.manifold import TSNE
 from sklearn.metrics import pairwise
 from scipy.cluster.hierarchy import linkage,dendrogram,distance 
-from PATH import *
+from PATH import top_path,data_path,tsne_path
 from matplotlib import pyplot as plt
 from matplotlib.ticker import StrMethodFormatter
 from matplotlib import cm
@@ -88,7 +88,7 @@ def statistics_preprocess(DF,plotting=True):
 
     return filtered_DF,statistics
 
-def t_sne_tuning(data,file_name):
+def t_sne_tuning(data,file_name,pick=5):
     """
     A new DF should be used, perform T_SNE decomposition and save to npy file 
     ...file_name : cancer_type + '.npy'
@@ -114,14 +114,20 @@ def t_sne_tuning(data,file_name):
         for j in range(3):
             ax[k,j].scatter(tsne_datas[i][:,0],tsne_datas[i][:,1],s=2)
             i += 1
-    return tsne_datas[5]
+    return tsne_datas[pick]
 
-def t_sne_label(tsne_data,labels,metrics):
+def t_sne_label(tsne_data,labels,metrics,manual_vote=None):
+    """
+    visualizing cluster result in tsne space
+    ... tsne_data : (samples, 2) the axes 
+    ... labels, metrics : type: dict, `my_metrics.cluster_metrics` of 3 seperate method
+    ... manual_vote : the number of cluster to pick, defualt to None and per`my_metrics.cluster_metrics.vote()`
+    """
     fig = plt.figure(figsize=(18,5))
     axs = fig.subplots(1,3)
     i = 0
     for method in labels.keys():
-        vote = metrics[method].vote()
+        vote = metrics[method].vote() if manual_vote is None else manual_vote
         label = labels[method][vote]
         axs[i].scatter(tsne_data[:,0],tsne_data[:,1],c=label,s=3)
         axs[i].set_title('{} cluster with optimal k  {}'.format(method,metrics[method]._k_ls[vote]))
@@ -173,25 +179,26 @@ def metrics_curve(metrics):
         for axx in ls:
             axx.legend()
             
-def sort_data_by_label(n_data,labels,metrics,method='km',direct_label=None):
+def sort_data_by_label(n_data,labels,metrics,method='km',manual_vote=None,direct_label=None):
     """
     sort data for heatmap and stack-bar plot
     """
     if direct_label is not None:
         label = direct_label
     else:
-        label = labels[method][metrics[method].vote()]
+        vote = metrics[method].vote() if manual_vote is None else manual_vote
+        label = labels[method][vote]
     label_df=pd.DataFrame({'x':range(n_data.shape[0]),'label': label}).sort_values('label')
     index=label_df['x']
     n_data = n_data[index]
     return n_data,label
     
-def stack_barplot(data,labels,cmap=cm.Spectral,**kwarg):
+# %load -s stack_barplot ./src/leukocyte_cluster.py
+def stack_barplot(data,labels,cell_label,cmap=cm.Spectral,cmap2=cm.viridis_r,**kwarg):
     """
     given the data(sorted)  with label,and Z, plot the stacked bar-plot
     """
     print('this will take several minutes')
-   
 
     label_num = np.bincount(labels)
     
@@ -205,11 +212,13 @@ def stack_barplot(data,labels,cmap=cm.Spectral,**kwarg):
     N = np.arange(data.shape[0])
     
     LEFT = 0
+    iicolor = 0
     for num in label_num:
-        ax2.barh(0,num,left=LEFT)
+        ax2.barh(0,num,left=LEFT,color=cmap2(iicolor/len(label_num)))
         ax2.set_xlim(0,data.shape[0]-1)
         ax2.axis('off')
         LEFT += num
+        iicolor += 1
     
 #     ax3.axis('off')
 #     tree = dendrogram(Z,p=15,truncate_mode='level',no_labels=True,above_threshold_color='black',color_threshold=0.1,ax=ax3)
@@ -228,8 +237,9 @@ def stack_barplot(data,labels,cmap=cm.Spectral,**kwarg):
         ax.axis('off')
     fig.legend(bbox_to_anchor=(0.81,0.7),loc='upper left',fontsize=20)
     fig.show()
+
     
-def tree_heatmap(n_data,Z):
+def tree_heatmap(n_data,Z,add_tree=False,ax=None):
     """
     hierarchical clustering and heatmap, data needed to sort
     """
@@ -239,16 +249,17 @@ def tree_heatmap(n_data,Z):
     Dist_M = pairwise.pairwise_distances(n_data)
     Sim_M = np.max(Dist_M) - Dist_M   # make distance Matrix a similarity Matrix
 
-
-    fig = plt.figure(figsize = (16,10))
-    ax = fig.add_axes([0,0,1,0.8])    #left,bottom,width,height
+    if ax is None:
+        fig = plt.figure(figsize = (16,10))
+        ax = fig.add_axes([0,0,1,0.8])    #left,bottom,width,height
     ax.axis('off')
     ax.imshow(Sim_M,cmap=cm.Blues);
 
-    ax2 = fig.add_axes([0.25,0.8,0.5,0.2]) #left,bottom,width,height
-    ax2.axis('off')
-    tree = dendrogram(Z,p=15,truncate_mode='level',no_labels=True,above_threshold_color='black',color_threshold=0.1,ax=ax2)
-    fig.show()
+    if add_tree:
+        ax2 = fig.add_axes([0.25,0.8,0.5,0.2]) #left,bottom,width,height
+        ax2.axis('off')
+        tree = dendrogram(Z,p=15,truncate_mode='level',no_labels=True,above_threshold_color='black',color_threshold=0.1,ax=ax2)
+#     fig.show()
     
 def cluter_in_all(DF,labels_dict,cancer_type):
 
@@ -297,7 +308,7 @@ def cluter_in_all_no_label(DF,cancer_type,ax,**kwarg):
     # plot data
     ax.set_xlabel('tsne-1',fontsize=12)
     ax.set_ylabel('tsne-2',fontsize=12)
-    ax.set_title(' {}  data '.format(cancer_type),fontsize=14)
+#     ax.set_title(' {}  data '.format(cancer_type),fontsize=14)
     # scatter
     ax.scatter(global_tsne[:,0],global_tsne[:,1],s=10,color='gray',alpha=0.3);  # ALL
     ax.scatter(local_tsne[:,0],local_tsne[:,1],s=10,**kwarg);   # specific cancer type 

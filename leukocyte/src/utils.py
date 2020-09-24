@@ -10,7 +10,12 @@ from PATH import *
 #######    read    ########
 ##########################
 
-def read_leukocyte(data_path,separate=False,csv=None):
+global name_dict
+my_cancer_type=['TNBC','NSCLC','HNSCC','CERVICAL','STOMACH','KIC2','BLADDER','MELANOMA','COLON','LIVER']
+formal_name=['TNBC','NSCLC','HNSC','CESC','STAD','KIC','BLAC','SKCM','COREAD','LIHC']
+name_dict=dict(zip(my_cancer_type,formal_name))
+
+def read_leukocyte(leukocyte_path,separate=False,csv=None):
     """
     read leukocyte rate, return the ALL.csv by default,
     when set `separate=True` will return a dict containing 10 kinds cancer
@@ -24,15 +29,22 @@ def read_leukocyte(data_path,separate=False,csv=None):
                 if csv == 'ALL.csv':
                     continue              # skip ALL.csv
                 fn = csv.split('.')[0]
-                pds[fn.upper()] = pd.read_csv(os.path.join(data_path,'leukocyte_ratio',csv))
+                pds[fn.upper()] = pd.read_csv(os.path.join(leukocyte_path,csv))
         else:
-            assert(csv in os.listdir(data_path+'/leukocyte_ratio'))
-            pds = pd.read_csv(os.path.join(data_path,'leukocyte_ratio',csv))
+            assert(csv in os.listdir(leukocyte_path))
+            pds = pd.read_csv(os.path.join(leukocyte_path,csv))
     else:
-        pds = pd.read_csv(os.path.join(data_path,'leukocyte_ratio','ALL.csv'))
+        pds = pd.read_csv(os.path.join(leukocyte_path,'ALL.csv'))
     
     return pds
 
 
 def read_color():
     return pd.read_csv(os.path.join(top_path,'leukocyte','color_leukocyte.csv'),index_col=0)
+
+def read_survival():
+    return pd.read_csv(os.path.join(data_path,'label','survival_time.csv')).drop(['Unnamed: 3'],axis=1) 
+
+def get_cluster_survival_intersect(survival_info,):
+    if survival_info is None:
+        survival

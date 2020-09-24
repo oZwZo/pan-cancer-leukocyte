@@ -9,8 +9,8 @@ import argparse
 from leukocyte_cluster import *
 from matplotlib.backends.backend_pdf import PdfPages
 
-def main(csv):
-    DF = utils.read_leukocyte(data_path,True,csv=csv)
+def main(csv,manual_pick=None):
+    DF = utils.read_leukocyte(leukocyte_path2,True,csv=csv)
     DF = DF.fillna(0)
     print('---------------------------------------------------------')
     print('\n read {} data '.format(csv))
@@ -21,6 +21,11 @@ def main(csv):
     DF = DF.fillna(0)
     print('\n preprocesing ... ')
     pdf.savefig()
+    
+    # get the color list after preprocess
+    colors = utils.read_color()         # read leukocyte color
+    cell_label=list(DF.columns)[1:]                                       # left cell
+    color_ls=colors.loc[cell_label].HEX.values   # select from all
 
     # violin plot
     data = DF.iloc[:,1:].values
@@ -43,7 +48,7 @@ def main(csv):
     metrics_curve(metrics)
     pdf.savefig()
 
-    t_sne_label(t_sne,labels,metrics)  # there's vote inside
+    t_sne_label(t_sne,labels,metrics,manual_vote=manual_pick)  # there's vote inside
     pdf.savefig()
 
     label_vote = {}
@@ -54,10 +59,12 @@ def main(csv):
     cluter_in_all(DF,label_vote,csv.replace('.csv',''))
     pdf.savefig()
     
+   
+
     #sort data 
-    sorted_data,labels = sort_data_by_label(data,labels,metrics,method='km')
+    sorted_data,labels = sort_data_by_label(data,labels,metrics,method='km',manual_vote=manual_pick)
     
-    stack_barplot(sorted_data,labels,Z)
+    stack_barplot(sorted_data,labels,cell_label,color_ls)
     pdf.savefig()
     
     tree_heatmap(sorted_data,Z)
