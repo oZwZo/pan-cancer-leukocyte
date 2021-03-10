@@ -23,13 +23,14 @@ def SSw_SSb(data,labels):
         SSb += np.sum( (mu - cluster_mean)**2 )*len(cluster_index)
     return SSw,SSb
 
-def compute_wk(X,labels,KL=False):
+def compute_wk(X,labels,KL=False,return_Bk=False):
     """
     Wk stands for the sum of euclidean distance of data points to its cooresponding cluster center
     arguments:
     ...X : (n_samples,n_feature)
     ...labels : (n_samples,) dtype = int
     ...KL : recale by k and data dimension p , should set to 'True' when later used to 
+       return_Bk : Wk is within group dispersion, Bk is between group dispersion
     """
     p = X.shape[1]
     n_cluster = len(np.unique(labels))
@@ -41,8 +42,62 @@ def compute_wk(X,labels,KL=False):
     ## 
     if KL:
         wk = (n_cluster)**(2/p)*wk
+        
+    if return_Bk:
+        x_bar = np.mean(X,axis=0).reshape(1,-1)
+        n_k = [np.sum(labels == c) for c in np.unique(labels)]
+        Bk = np.dot(pairwise.pairwise_distances(v,x_bar).T,n_k)  # inner product -> \sigma n_k * d(v,x_mean)
+        return wk,Bk
+    else:    
+        return wk
+
+def explain_variance(X,labels,define_by='B_2_T'):
+    """
+    compute the proportion of variance explained
     
-    return wk
+    X : in the shape of (n_samples, n_features)
+    labels : the clustering label , of shape (n_samples,)
+    define_by : there are two definition of explained variance : "B_2_T" or ""B_2_W""
+                - "B_2_T" : between group variance to total variance
+                - "B_2_W" : between group variance to within group variance
+    """
+    one_class = np.full((X.shape[0],),0)
+    
+    # within group variance , between group variance
+    wk , bk = compute_wk(X,labels,return_Bk=True)
+    
+    # total variance
+    T , _ = compute_wk(X,one_class,return_Bk=True)
+    
+    if define_by == 'B_2_T':
+        return bk / T
+    elif define_by == 'B_2_W':
+        return bk / wk
+
+def Duda_Hart_score(data,labels,z=3.20,minus_criteria=False,KL=False):
+    """
+    Duda and Hart (1973) proposed a ratio criterion Je(2)=Je(1) 
+    
+    ```math
+    Duda = \frac{Je_k}{Je_1} = \frac{\sum_k W_k}{W_m}  , m : merge
+    ```
+    
+    data   : [n_samples,n_feature] 
+    labels : [n_samples,]
+    z      : the standard normal score , defualt to 3.20 
+    """
+    n,p = data.shape
+    
+    Je_k = compute_wk(data,labels,KL)
+    Je_1 = compute_wk(data,np.full(data.shape[0],fill_value=0),KL)
+    
+    duda = np.divide(Je_k , Je_1)
+    
+    criteria = 0
+    if minus_criteria:
+    # $$ criteria = 1- \frac{2}{\pi p} - z \sqrt{\frac{2 (1 - \frac{8}{\pi^2 p})}{n_m p}}  $$
+        criteria = 1 - 2/(np.pi*p) - z*np.sqrt(2*(1-8/(p*np.pi**2))/(n*p))
+    
 
 def pairwise_dist(X,Y=None):
     """
@@ -155,19 +210,19 @@ def gap_statistics(X,labels,n_random=100):
     return Gap_k , s_k
 
 
-def DB_score(X,labels):
+def DB_score(X,labels,metric):
     
     n_cluster = len(np.unique(labels))
     # get v
     v = np.stack([np.mean(X[labels==c],axis=0) for c in np.unique(labels)])
 
     # d_ij
-    d_ij = pairwise.pairwise_distances(v)
+    d_ij = pairwise.pairwise_distances(v,metric=metric)
     for i in range(d_ij.shape[0]):
         d_ij[i,i] = np.inf
 
     # compute si
-    s_i = np.stack([np.mean(pairwise.pairwise_distances(X[labels ==c],v[c].reshape(1,-1))) for c in np.unique(labels)])
+    s_i = np.stack([np.mean(pairwise.pairwise_distances(X[labels ==c],v[c].reshape(1,-1),metric=metric)) for c in np.unique(labels)])
     s_i_bc = np.broadcast_to(s_i,(n_cluster,n_cluster))
 
     # compute R
@@ -204,9 +259,12 @@ def KL_score(X,label_ls):
     KL_k = [np.abs(np.divide(DIFF_k[i],DIFF_k[i+1])) for i in range(0,len(DIFF_k)-1)]
     return KL_k
 
+
+
+
 def Hartigan_score(X,label_ls):
     """
-    the calculation of Hartigan score  require Wk and Wk+1 
+    the calculation of Hartigan score require Wk and Wk+1 
     """
     n = X.shape[0]
     k_ls = [len(np.unique(labels)) for labels in label_ls]
@@ -225,6 +283,7 @@ class cluster_metrics(object):
     
     def __init__(self,X,label_ls):
         warnings.filterwarnings("ignore")
+        self.labels = label_ls
         self._k_ls = [len(np.unique(labels)) for labels in label_ls][:-1]
 
         # single mapping metrics

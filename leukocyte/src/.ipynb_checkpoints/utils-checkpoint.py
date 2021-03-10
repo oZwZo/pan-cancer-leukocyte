@@ -40,8 +40,20 @@ def read_leukocyte(leukocyte_path,separate=False,csv=None):
 
 
 def read_color():
+    """
+    
+    """
     return pd.read_csv(os.path.join(top_path,'leukocyte','color_leukocyte.csv'),index_col=0)
+
+def get_color_match_data(local_DF):
+    colors = utils.read_color()         # read leukocyte color
+    cell_label=list(local_DF.columns)[1:]                                       # left cell
+    color_ls=colors.loc[cell_label].HEX.values   # select from all
+    return color_ls
 
 def read_survival():
     return pd.read_csv(os.path.join(data_path,'label','survival_time.csv')).drop(['Unnamed: 3'],axis=1) 
 
+def get_cluster_survival_intersect(survival_info,):
+    if survival_info is None:
+        survival

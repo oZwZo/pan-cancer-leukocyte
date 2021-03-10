@@ -147,33 +147,42 @@ def hierarchical_tree(data,metric='euclidean',p_start=5,p_step=1):
             p += p_step
     return Z
     
-def cluster3(data,n_clusters = range(5,10)):
+def cluster3(data,n_clusters = range(3,10),methods=None):
     '''
     cluster data with 3 different method : agglomerative , K-means, GMM
     and generate its cluster metrics 
     '''
-    labels = {}
+    cluster_func = {}
     metrics = {}
-    methods = ['ac','km','gmm']
+    labels = {}
+    if methods is None:
+        methods = ['ac','km','gmm']
 
-    # clustering
-    labels['ac'] = [AgglomerativeClustering(n_clusters=i).fit_predict(data) for i in n_clusters]
-    labels['km'] = [KMeans(n_clusters=i,n_jobs=8).fit_predict(data) for i in n_clusters]
-    labels['gmm'] = [GMM(n_components=i,covariance_type='tied',max_iter=400).fit_predict(data) for i in  n_clusters]
+    # define clustering function
+    cluster_func['ac'] = lambda i: AgglomerativeClustering(n_clusters=i).fit_predict(data)
+    cluster_func['km'] = lambda i: KMeans(n_clusters=i,n_jobs=8,algorithm='full',max_iter=600).fit_predict(data)
+    cluster_func['gmm'] = lambda i: GMM(n_components=i,covariance_type='tied',max_iter=400).fit_predict(data) 
 
     # metrics class
     for method in methods:
+        # implement cluster at here
+        labels[method] = [cluster_func[method](i) for i in n_clusters]
         metrics[method] = my_metrics.cluster_metrics(data,labels[method])
     
     return labels,metrics
 
-def metrics_curve(metrics):
-    methods = metrics.keys()
+def metrics_curve(metrics,methods=None):
+    """
+    metrics : my_metrics.cluster_metrics event
+    """
+    
+    if methods is None:
+        methods = metrics.keys()
     
     fig = plt.figure(figsize=(16,16))
     ax = fig.subplots(3,2)
 
-    for method in methods:          
+    for method in methods:
         metrics[method].all_in_one(fig=fig,ax=ax,**{'label':method})
     for ls in ax:
         for axx in ls:
@@ -191,7 +200,7 @@ def sort_data_by_label(n_data,labels,metrics,method='km',manual_vote=None,direct
     label_df=pd.DataFrame({'x':range(n_data.shape[0]),'label': label}).sort_values('label')
     index=label_df['x']
     n_data = n_data[index]
-    return n_data,label
+    return n_data,label,label_df
     
 # %load -s stack_barplot ./src/leukocyte_cluster.py
 def stack_barplot(data,labels,cell_label,cmap=cm.Spectral,cmap2=cm.viridis_r,**kwarg):
@@ -205,8 +214,8 @@ def stack_barplot(data,labels,cell_label,cmap=cm.Spectral,cmap2=cm.viridis_r,**k
     figsize = (45,15) if data.shape[0] > 2000 else (12,5)
     fig = plt.figure(figsize=figsize)
     
-    ax = fig.add_axes([0,0,0.8,0.7]) 
-    ax2 = fig.add_axes([0,0.7-0.01,0.8,0.05])   # left,bottom,width,height
+    ax = fig.add_axes([0.03,0.1,0.8,0.7]) 
+    ax2 = fig.add_axes([0.03,0.8,0.8,0.05])   # left,bottom,width,height
 #     ax3 = fig.add_axes([1,0,0.3,0.7])       # left,bottom,width,height
     
     N = np.arange(data.shape[0])
@@ -234,10 +243,40 @@ def stack_barplot(data,labels,cell_label,cmap=cm.Spectral,cmap2=cm.viridis_r,**k
             colour = cmap[i]
         ax.bar(N,height=data[:,i],bottom=data[:,:i].sum(axis=1),color=colour,width=1,label=cell_label[i],**kwarg)
         ax.set_xlim(0,data.shape[0])
-        ax.axis('off')
-    fig.legend(bbox_to_anchor=(0.81,0.7),loc='upper left',fontsize=20)
+        ax.get_xaxis().set_visible(False)
+        ax.set_yticks(np.arange(11)/10)
+        ax.set_yticklabels(labels=np.arange(11)/10,fontsize=30)
+    fig.legend(bbox_to_anchor=(0.83,0.83),loc='upper left',fontsize=26)
     fig.show()
 
+    
+def stack_imshow(data,labels):
+
+    fig = plt.figure(figsize=(30,10))
+    
+    ax = fig.add_axes([0.08,0,0.92,0.7])
+    ax2 = fig.add_axes([0.08,0.71,0.92,0.06])
+    ax3 = fig.add_axes([0,0,0.08,0.7])
+    
+    ax.axis('off')    
+    ax.yaxis.set_ticks(range(1,20));
+    ax2.axis('off')
+    ax3.axis('off')
+    ax3.yaxis.set_ticks(range(1,20));
+    
+    ax.imshow(data.T,aspect='auto',cmap=cm.Spectral_r)
+    
+    label_num = np.bincount(labels)
+    LEFT = 0
+    iicolor = 0
+    for num in label_num:
+        ax2.barh(0,num,left=LEFT,color=cm.viridis_r(iicolor/len(label_num)))
+        ax2.set_xlim(0,data.shape[0]-1)
+        ax2.axis('off')
+        LEFT += num
+        iicolor += 1
+        
+    tree = dendrogram(Z,p=13,truncate_mode='level',no_labels=True,ax=ax3,distance_sort=True,orientation='left')
     
 def tree_heatmap(n_data,Z,add_tree=False,ax=None):
     """
